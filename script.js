@@ -10,15 +10,15 @@ function zoomFiltering(divId) {
     .attr('transform',
             'translate(20,20)');
 
-    //var text = "This is a sentence that we will sequence";
-    var text = "This is a longer sentence that we can sequence how we like";
+    var text = "This is a sentence that we will sequence";
+    //var text = "This is a longer sentence that we can sequence how we like";
     console.log('text', text);
 
     var gOrigSentence = svg.append('g');
     var letterWidth = 12;
     var letterHeight = 24;
-    var minReadLength = 2;
-    var maxReadLength = 3;
+    var minReadLength = 3;
+    var maxReadLength = 5;
 
     gOrigSentence.selectAll('.text')
         .data(text)
@@ -31,7 +31,7 @@ function zoomFiltering(divId) {
     //duplicate our sequence
     var numDuplicates = 10;
 
-    var duration = 100;
+    var duration = 2000;
 
     for (var j = 1; j < numDuplicates + 1; j++) {
         var gDuplicate = d3.select(gOrigSentence.node().cloneNode(true));
@@ -176,12 +176,19 @@ function zoomFiltering(divId) {
                   .attr('transform',
                           `translate(${marginLeft + colPos * maxReadLength * letterWidth + (colPos - 1) * interColSpace},
                                      ${rowPos * letterHeight + marginTop})`)
+                  .on('end', alignReads);
           });
 
-        alignReads();
     }
 
+    var aligned = false;
+
     function alignReads() {
+        if (aligned)
+            return;
+
+        aligned = true;
+
         let marginTop = 120;
         let positionCounts = new Array(text.length).fill(0);
 
