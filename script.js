@@ -1,5 +1,5 @@
 function zoomFiltering(divId) {
-    var width = 550, height=400, maxR=20;
+    var width = 800, height=800, maxR=20;
 
     var svg = d3.select(divId)
                 .append('svg')
@@ -10,14 +10,15 @@ function zoomFiltering(divId) {
     .attr('transform',
             'translate(20,20)');
 
-    var text = "This is a sentence that we will sequence";
+    //var text = "This is a sentence that we will sequence";
+    var text = "This is a longer sentence that we can sequence how we like";
     console.log('text', text);
 
     var gOrigSentence = svg.append('g');
     var letterWidth = 12;
     var letterHeight = 24;
-    var minReadLength = 3;
-    var maxReadLength = 5;
+    var minReadLength = 2;
+    var maxReadLength = 3;
 
     gOrigSentence.selectAll('.text')
         .data(text)
@@ -28,7 +29,7 @@ function zoomFiltering(divId) {
         .text(function(d) { return d; });
     
     //duplicate our sequence
-    var numDuplicates = 3;
+    var numDuplicates = 10;
 
     var duration = 100;
 
@@ -148,12 +149,14 @@ function zoomFiltering(divId) {
         shuffleReads();
     }
 
+    let marginLeft = 10;
+    let interColSpace = 10;
+
     function shuffleReads() {
         var N = d3.selectAll('.read').size();
         let positions = Array.apply(null, {length: N}).map(Number.call, Number);
         shuffle(positions);
 
-        let interColSpace = 10;
         let numCols = Math.floor(width / (interColSpace + letterWidth * maxReadLength));
         let numRows = Math.ceil(N / numCols);
 
@@ -161,7 +164,6 @@ function zoomFiltering(divId) {
         console.log('numRows:', numRows, 'numCols:', numCols);
 
         let marginTop = 30;
-        let marginLeft = 10;
 
         d3.selectAll('.read')
           .each(function(d,i) {
@@ -180,12 +182,64 @@ function zoomFiltering(divId) {
     }
 
     function alignReads() {
+        let marginTop = 120;
+        let positionCounts = new Array(text.length).fill(0);
+
         d3.selectAll('.read')
-            .each(function(d,i) {
+            .each(function(d,_) {
                 let readNodes = d3.select(this).selectAll('text').nodes()
                 let readText = readNodes.map(x => x.innerHTML).join('');
 
-                console.log('readText:', readNodes, readText);
+                let positionMismatches = [];
+
+                for (let i = 0; i < text.length - readText.length + 1; i++) {
+                    let positionMismatch = [i,0];
+
+                    for (let j = 0; j < readText.length; j++) {
+                        if ( text[i + j] != readText[j]) {
+                            // add a mismatch to this position
+                            positionMismatch[1] += 1;
+                        }
+                    }
+
+                    positionMismatches.push(positionMismatch);
+                }
+
+                positionMismatches.sort((a,b) => {
+                    if (b[1] == a[1]) {
+                        // equal number of mismatches, sort randomly
+                        /*
+                        if (a[1] < 2)
+                            console.log('equal', a[0], b[0], "mismatches:", a[1], b[1]);
+                        */
+                        return -.5 + Math.random()
+                    } else {
+                        return a[1] - b[1];
+                    }
+                });
+
+
+                let startPos = positionMismatches[0][0];
+
+                //if (positionMismatches[0][1] = positionMismatches[1][1]) {
+                if (readText == 'ence') {
+                    console.log('readText:', readText);
+                    console.log('0', positionMismatches[0], positionMismatches[1], positionMismatches[2]);
+                }
+
+                let slicedPoss = positionCounts.slice(startPos, startPos + readText.length);
+                let yPos = Math.max(...slicedPoss);
+
+                for (let i = 0; i < readText.length; i++) {
+                    positionCounts[startPos + i] = yPos + 1;
+                }
+
+                d3.select(this)
+                    .transition()
+                    .duration(duration)
+                    .attr('transform',
+                          `translate(${startPos * letterWidth},
+                                     ${yPos * letterHeight + marginTop})`)
             });
     }
 
