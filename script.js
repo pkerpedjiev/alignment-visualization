@@ -17,8 +17,8 @@ function zoomFiltering(divId) {
     var gOrigSentence = svg.append('g');
     var letterWidth = 12;
     var letterHeight = 24;
-    var minReadLength = 3;
-    var maxReadLength = 5;
+    var minReadLength = 4;
+    var maxReadLength = 4;
 
     gOrigSentence.selectAll('.text')
         .data(text)
@@ -42,17 +42,12 @@ function zoomFiltering(divId) {
             .transition()
             .duration(duration)
             .attr('transform', `translate(0,${30 * j})`)
-            .on('end', function() { mutateSequences(this); });
-    }
+            //.on('end', function() { mutateSequences(this); });
 
-    function mutateSequences(x) {
-        var alphabet = 'abcdefghijklmnopqrstuvwxyz';
-        var gDuplicateHere = d3.select(x);
-
-        // mutate the copy
         var numToMutate = 2;
+        var alphabet = 'abcdefghijklmnopqrstuvwxyz';
         for (var i = 0; i < numToMutate; i++) {
-            var nodeToMutate = gDuplicateHere.select('text:nth-child(' + Math.floor(Math.random() * text.length) + ')');
+            var nodeToMutate = gDuplicate.select('text:nth-child(' + Math.floor(Math.random() * text.length) + ')');
             nodeToMutate.transition()
                 .duration(duration)
                 .style('fill', 'red')
