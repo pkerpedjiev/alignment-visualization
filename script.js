@@ -1,5 +1,9 @@
-function zoomFiltering(divId) {
+function zoomFiltering(divId, refSeq, seqSeq) {
     var width = 800, height=800, maxR=20;
+
+    d3.select(divId)
+    .selectAll('svg')
+    .remove();
 
     var svg = d3.select(divId)
                 .append('svg')
@@ -10,15 +14,56 @@ function zoomFiltering(divId) {
     .attr('transform',
             'translate(20,20)');
 
-    var text = "This is a sentence that we will sequence";
-    //var text = "This is a longer sentence that we can sequence how we like";
-    console.log('text', text);
+    console.log("seqSeq", seqSeq);
+    var reads = [];
 
-    var gOrigSentence = svg.append('g');
+    let coverage = 5;
+    let numReads = seqSeq.length * coverage;
     var letterWidth = 12;
     var letterHeight = 24;
-    var minReadLength = 4;
-    var maxReadLength = 4;
+    var minReadLength = 3;
+    var maxReadLength = 6;
+
+    for (let i = 0; i < numReads; i++) {
+        let startI = getRandomInt(0, seqSeq.length - minReadLength);
+        let nextI = startI + getRandomInt(minReadLength,maxReadLength);
+
+        let read = seqSeq.slice(startI, nextI);
+        reads.push(read);
+    }
+
+    var gReads = svg.selectAll('.read')
+    .data(reads)
+    .enter()
+    .append('g')
+    .classed('read', true);
+
+    var rectReads = gReads
+    .append('rect')
+    .attr('width', (d) => d.length * letterWidth)
+    .attr('height', 18)
+    .attr('y', 6)
+    .attr('x', -2)
+    .style('stroke', 'grey')
+    .style('stroke-width', '1px')
+    .style('fill', 'transparent');
+
+    var textReads = gReads
+    .append('text')
+    .text((d) => d)
+    .attr('y', 20);
+
+    console.log('reads:', reads);
+
+    alignReads(seqSeq);
+    return;
+
+    
+
+    var text = refSeq;
+    //var text = "This is a longer sentence that we can sequence how we like";
+
+    var gOrigSentence = svg.append('g');
 
     gOrigSentence.selectAll('.text')
         .data(text)
@@ -31,7 +76,7 @@ function zoomFiltering(divId) {
     //duplicate our sequence
     var numDuplicates = 10;
 
-    var duration = 2000;
+    var duration = 400;
 
     for (var j = 1; j < numDuplicates + 1; j++) {
         var gDuplicate = d3.select(gOrigSentence.node().cloneNode(true));
@@ -178,7 +223,7 @@ function zoomFiltering(divId) {
 
     var aligned = false;
 
-    function alignReads() {
+    function alignReads(text) {
         if (aligned)
             return;
 

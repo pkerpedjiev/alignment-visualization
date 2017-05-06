@@ -2,13 +2,30 @@
 <meta charset="utf-8">
 
 <body>
+<div>
+    <input id="refSeq" type="text" name="reference" value="This is a santence to sequence" style="width:400px">
+    <input id="seqSeq" type="text" name="sequence" value="Another sentence to sequence" style="width:400px">
+    <button type="button" id="alignButton">Align!</button>
+</div>
 <div id="zoom-filtering-div" />
 <div id="mutated sentence" />
 <link href="style.css" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.3.0/d3.js"></script>
 <script src="script.js"></script>
 <script>
-zoomFiltering('#zoom-filtering-div');
+
+function align() {
+    var refSeq = document.getElementById('refSeq').value;
+    var seqSeq = document.getElementById('seqSeq').value;
+
+    zoomFiltering('#zoom-filtering-div', refSeq, seqSeq);
+    console.log('aligned');
+}
+
+d3.select('#alignButton')
+.on('click', align);
+
+align();
 </script>
 </body>
 
