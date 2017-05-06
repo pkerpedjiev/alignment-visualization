@@ -32,11 +32,22 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         reads.push(read);
     }
 
+    var gRef = svg.append('g')
+    .classed('ref', true)
+
+    gRef.selectAll('text')
+    .data(refSeq)
+    .enter()
+    .append('text')
+    .attr('x', (d,i) => i * letterWidth)
+    .attr('y', 0)
+    .text((d) => d);
+
     var gReads = svg.selectAll('.read')
     .data(reads)
     .enter()
     .append('g')
-    .classed('read', true);
+    .classed('read', true)
 
     var rectReads = gReads
     .append('rect')
@@ -49,13 +60,21 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     .style('fill', 'transparent');
 
     var textReads = gReads
-    .append('text')
-    .text((d) => d)
-    .attr('y', 20);
+    .each(function(d) {
+        // have to append individual texts for each letter so that 
+        // we can color according to mismatches
+        for (let i = 0; i < d.length; i++) {
+            d3.select(this)
+            .append('text')
+            .text(d[i])
+            .attr('x', i * letterWidth)
+            .attr('y', 20)
+        }
+    })
 
     console.log('reads:', reads);
 
-    alignReads(seqSeq);
+    alignReads(refSeq);
     return;
 
     
@@ -229,7 +248,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
         aligned = true;
 
-        let marginTop = 120;
+        let marginTop = 0;
         let positionCounts = new Array(text.length).fill(0);
 
         d3.selectAll('.read')
@@ -279,7 +298,17 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
                 for (let i = 0; i < readText.length; i++) {
                     positionCounts[startPos + i] = yPos + 1;
+
                 }
+
+                d3.select(this)
+                .selectAll('text')
+                .each(function(t, ti) {
+                    if (readText[ti] != text[startPos + ti]) {
+                        d3.select(this)
+                        .attr('fill', 'red');
+                    }
+                });
 
                 d3.select(this)
                     .transition()
@@ -287,6 +316,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
                     .attr('transform',
                           `translate(${startPos * letterWidth},
                                      ${yPos * letterHeight + marginTop})`)
+
             });
     }
 
