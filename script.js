@@ -93,7 +93,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         .text(function(d) { return d; });
     
     //duplicate our sequence
-    var numDuplicates = 10;
+    var numDuplicates = 400;
 
     var duration = 400;
 
@@ -109,7 +109,8 @@ function zoomFiltering(divId, refSeq, seqSeq) {
             //.on('end', function() { mutateSequences(this); });
 
         var numToMutate = 2;
-        var alphabet = 'abcdefghijklmnopqrstuvwxyz';
+        //var alphabet = 'abcdefghijklmnopqrstuvwxyz';
+        var alphabet = 'ACGT';
         for (var i = 0; i < numToMutate; i++) {
             var nodeToMutate = gDuplicate.select('text:nth-child(' + Math.floor(Math.random() * text.length) + ')');
             nodeToMutate.transition()
@@ -127,9 +128,6 @@ function zoomFiltering(divId, refSeq, seqSeq) {
                 .duration(duration)
                 .text(alphabet[Math.floor(Math.random() * alphabet.length)]);
                 */
-
-
-            console.log('nodeToMutate:', nodeToMutate);
         }
     }
 
@@ -151,7 +149,6 @@ function zoomFiltering(divId, refSeq, seqSeq) {
             .each(function(d,j) {
                 let gNode = d3.select(this);
                 let letterNodes = gNode.selectAll('text').nodes()
-                console.log('gNode:', gNode, letterNodes);
 
                 if (j == 0)
                     return;
@@ -163,7 +160,6 @@ function zoomFiltering(divId, refSeq, seqSeq) {
                     let currentTexts = letterNodes.slice(i, nextI);
 
                     let read = currentTexts.map((x) => x.innerHTML).join("");
-                    console.log('read:', read);
 
                     var gChunk = svg.append('g')
                         .attr('class', 'read')
@@ -219,9 +215,6 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         let numCols = Math.floor(width / (interColSpace + letterWidth * maxReadLength));
         let numRows = Math.ceil(N / numCols);
 
-        console.log('positions', positions);
-        console.log('numRows:', numRows, 'numCols:', numCols);
-
         let marginTop = 30;
 
         d3.selectAll('.read')
@@ -249,7 +242,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         aligned = true;
 
         let marginTop = 0;
-        let positionCounts = new Array(text.length).fill(0);
+        let occupied = [new Array(text.length).fill(0)];
 
         d3.selectAll('.read')
             .each(function(d,_) {
@@ -287,18 +280,29 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
                 let startPos = positionMismatches[0][0];
 
-                //if (positionMismatches[0][1] = positionMismatches[1][1]) {
-                if (readText == 'ence') {
-                    console.log('readText:', readText);
-                    console.log('0', positionMismatches[0], positionMismatches[1], positionMismatches[2]);
+                // what is the uppermost free position for this read?
+                let rowToPlaceReadIn = null;
+
+                for (let i = 0; i < occupied.length; i++) {
+                    let slicedPoss = occupied[i].slice(startPos, startPos + readText.length);
+                    let s = slicedPoss.reduce((a,b) => a + b, 0);
+
+                    if (s == 0) {
+                        rowToPlaceReadIn = occupied[i];
+                        yPos = i;
+                        break;
+                    }
                 }
 
-                let slicedPoss = positionCounts.slice(startPos, startPos + readText.length);
-                let yPos = Math.max(...slicedPoss);
+                if (!rowToPlaceReadIn) {
+                    // all existing rows are full, create a new one
+                    rowToPlaceReadIn = new Array(text.length).fill(0);
+                    yPos = occupied.length;
+                    occupied.push(rowToPlaceReadIn);
+                }
 
-                for (let i = 0; i < readText.length; i++) {
-                    positionCounts[startPos + i] = yPos + 1;
-
+                for (let j = startPos; j < startPos + readText.length; j++) {
+                    rowToPlaceReadIn[j] = 1;
                 }
 
                 d3.select(this)
