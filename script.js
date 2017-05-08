@@ -1,3 +1,33 @@
+function calculateCoverage(mappedReads, refLength) {
+    /**
+     * Calculate the read coverage over a reference sequence
+     *
+     * Parameters
+     * ----------
+     *
+     *  mappedReads : [{read: string, mappedPos: int, mismatches: [int, ...]}]
+     *      The combined output of many mapRead calls
+     *
+     *  refLength : int
+     *      The length of the reference sequence
+     *
+     * Returns
+     * -------
+     *
+     *  An array of coverage values
+     *
+     */
+
+    let coverage = new Array(refLength).fill(0);
+
+    for (let read of mappedReads) {
+        for (let i = read.mapPos; i < read.mapPos + read.read.length; i++)
+            coverage[i] += 1;
+    }
+
+    return coverage;
+}
+
 function mapRead(read, refSeq, maxMismatches) {
     /**
      * Map a read to a reference sequence
@@ -68,6 +98,47 @@ function mapRead(read, refSeq, maxMismatches) {
         return { read: read, mapPos: -1, mismatches: [] };
 }
 
+function drawCoverageProfile(gProfile, height, letterWidth, coverageProfile) {
+    /*
+     * Draw a coverage profile within the given element
+     *
+     * Parameters
+     * ----------
+     *
+     *  gProfile : A d3 'g' element
+     *      The g element to draw the profile into
+     *
+     *  height: int
+     *      The height of the coverage profile
+     *
+     *  letterWidth: int
+     *      The width of each letter in the reference sequence.
+     *      This will be the width of each rectangle.
+     *
+     *  coverageProfile : [int, ...]
+     *      An array of coverage values
+     *
+     * Return
+     * ------
+     *
+     *  nothing
+     */
+    let valueScale = d3.scaleLinear()
+    .domain([0, d3.max(coverageProfile)])
+    .range([height, 0]);
+
+    gProfile.selectAll('.coverage-rect')
+    .data(coverageProfile)
+    .enter()
+    .append('rect')
+    .classed('coverage-rect', true)
+    .attr('x', (d,i) => i * letterWidth)
+    .attr('y', valueScale)
+    .attr('width', () => letterWidth)
+    .attr('height', (d) => height - valueScale(d))
+
+}
+
 function zoomFiltering(divId, refSeq, seqSeq) {
     var width = 800, height=800, maxR=20;
 
@@ -87,12 +158,14 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     //console.log("seqSeq", seqSeq);
     var reads = [];
 
-    let coverage = 5;
+    let coverage = 40;
     let numReads = seqSeq.length * coverage;
     var letterWidth = 12;
     var letterHeight = 24;
     var minReadLength = 3;
     var maxReadLength = 6;
+
+    console.log('numReads:', numReads);
 
     for (let i = 0; i < numReads; i++) {
         let startI = getRandomInt(0, seqSeq.length - minReadLength);
@@ -104,8 +177,17 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         reads.push(mappedRead);
     }
 
+    let coverageArray = calculateCoverage(reads, refSeq.length);
+
+    let coverageProfileHeight = 20;
+    let interMargin = 5;
+
+    var gCoverageProfile = svg.append('g')
+    drawCoverageProfile(gCoverageProfile, coverageProfileHeight, letterWidth, coverageArray);
+
     var gRef = svg.append('g')
     .classed('ref', true)
+    .attr('transform', `translate(0,${coverageProfileHeight + interMargin + letterHeight / 2})`);
 
     gRef.selectAll('text')
     .data(refSeq)
@@ -113,9 +195,14 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     .append('text')
     .attr('x', (d,i) => i * letterWidth)
     .attr('y', 0)
+    .classed('reference-seq', true)
     .text((d) => d);
 
-    var gReads = svg.selectAll('.read')
+
+    var gAllReads = svg.append('g')
+    .attr('transform', `translate(0,${coverageProfileHeight + interMargin + letterHeight / 2})`);
+
+    var gReads = gAllReads.selectAll('.read')
     .data(reads)
     .enter()
     .append('g')
@@ -162,44 +249,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         .attr('y', 20)
         .text(function(d) { return d; });
     
-    //duplicate our sequence
-    var numDuplicates = 400;
-
     var duration = 400;
-
-    for (var j = 1; j < numDuplicates + 1; j++) {
-        var gDuplicate = d3.select(gOrigSentence.node().cloneNode(true));
-
-        svg.node().appendChild(gDuplicate.node());
-
-        gDuplicate
-            .transition()
-            .duration(duration)
-            .attr('transform', `translate(0,${30 * j})`)
-            //.on('end', function() { mutateSequences(this); });
-
-        var numToMutate = 2;
-        //var alphabet = 'abcdefghijklmnopqrstuvwxyz';
-        var alphabet = 'ACGT';
-        for (var i = 0; i < numToMutate; i++) {
-            var nodeToMutate = gDuplicate.select('text:nth-child(' + Math.floor(Math.random() * text.length) + ')');
-            nodeToMutate.transition()
-                .duration(duration)
-                .style('fill', 'red')
-                .on('end', function() {
-                    d3.select(this)    
-                    .text(alphabet[Math.floor(Math.random() * alphabet.length)]);
-
-                    breakUpSequences();
-                });
-
-                /*
-            nodeToMutate.transition()
-                .duration(duration)
-                .text(alphabet[Math.floor(Math.random() * alphabet.length)]);
-                */
-        }
-    }
 
     function getRandomInt(min, max) {
       min = Math.ceil(min);
@@ -230,7 +280,6 @@ function zoomFiltering(divId, refSeq, seqSeq) {
             .each(function(d,_) {
                 let readNodes = d3.select(this).selectAll('text').nodes()
                 let readText = readNodes.map(x => x.innerHTML).join('');
-                //console.log('d:', d);
 
                 // what is the uppermost free position for this read?
                 let rowToPlaceReadIn = null;

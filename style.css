@@ -3,3 +3,11 @@ text {
     font-size: 14px;
     font-style: normal;
 }
+
+.reference-seq {
+    fill: black;
+}
+
+.coverage-rect {
+    fill: blue;
+}
