@@ -158,12 +158,13 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     //console.log("seqSeq", seqSeq);
     var reads = [];
 
-    let coverage = 40;
-    let numReads = seqSeq.length * coverage;
-    var letterWidth = 12;
-    var letterHeight = 24;
+    let coverage = 10;
     var minReadLength = 3;
     var maxReadLength = 6;
+    console.log('seqSeq.length:', seqSeq.length);
+    let numReads = Math.ceil(seqSeq.length * coverage / ((minReadLength + maxReadLength) / 2));
+    var letterWidth = 12;
+    var letterHeight = 24;
 
     console.log('numReads:', numReads);
 
@@ -178,6 +179,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     }
 
     let coverageArray = calculateCoverage(reads, refSeq.length);
+    console.log("Average coverage:", coverageArray.reduce((a,b) => a + b, 0) / seqSeq.length);
 
     let coverageProfileHeight = 20;
     let interMargin = 5;
