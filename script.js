@@ -1,3 +1,73 @@
+function mapRead(read, refSeq, maxMismatches) {
+    /**
+     * Map a read to a reference sequence
+     *
+     * Parameters
+     * ----------
+     *
+     *  read: string
+     *      A short read (a few characters long)
+     *
+     *  refSeq: string
+     *      The reference sequence to map to
+     *
+     *  maxMismatches: string (optional)
+     *      The maximum number of mismatches to allow
+     *
+     * Returns
+     * -------
+     *
+     *  {read: string, mapPos: int, mismatches: [int, int...]}:
+     *      The position where the read maps along with the list
+     *      of locations where there's a mismatch
+     */
+
+    // the number of mismatches at each location
+    let positionMismatches = [];
+
+    for (let i = 0; i < refSeq.length - read.length + 1; i++) {
+        let positionMismatch = [i,[]];
+
+        for (let j = 0; j < read.length; j++) {
+            if ( refSeq[i + j] != read[j]) {
+                // add a mismatch to this position
+                positionMismatch[1].push(j);
+
+                // too many mismatches
+                if (maxMismatches && positionMismatch[1].length > maxMismatches)
+                    continue;
+            }
+        }
+
+        positionMismatches.push(positionMismatch);
+    }
+
+    positionMismatches.sort((a,b) => {
+        // a[1] and b[1] are the lists of mismatch positions
+
+        if (b[1].length == a[1].length) {
+            // equal number of mismatches, sort randomly
+            /*
+            if (a[1] < 2)
+                console.log('equal', a[0], b[0], "mismatches:", a[1], b[1]);
+            */
+            return -.5 + Math.random()
+        } else {
+            return a[1].length - b[1].length;
+        }
+    });
+
+
+    if (positionMismatches.length)
+        return { read: read,
+                 mapPos: positionMismatches[0][0],
+                 mismatches: positionMismatches[0][1] }
+    else
+        // we couldn't map the read with less than the
+        // specified number of mismatches
+        return { read: read, mapPos: -1, mismatches: [] };
+}
+
 function zoomFiltering(divId, refSeq, seqSeq) {
     var width = 800, height=800, maxR=20;
 
@@ -14,7 +84,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     .attr('transform',
             'translate(20,20)');
 
-    console.log("seqSeq", seqSeq);
+    //console.log("seqSeq", seqSeq);
     var reads = [];
 
     let coverage = 5;
@@ -29,7 +99,9 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         let nextI = startI + getRandomInt(minReadLength,maxReadLength);
 
         let read = seqSeq.slice(startI, nextI);
-        reads.push(read);
+        let mappedRead = mapRead(read, refSeq);
+
+        reads.push(mappedRead);
     }
 
     var gRef = svg.append('g')
@@ -51,7 +123,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     var rectReads = gReads
     .append('rect')
-    .attr('width', (d) => d.length * letterWidth)
+    .attr('width', (d) => d.read.length * letterWidth)
     .attr('height', 18)
     .attr('y', 6)
     .attr('x', -2)
@@ -63,16 +135,14 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     .each(function(d) {
         // have to append individual texts for each letter so that 
         // we can color according to mismatches
-        for (let i = 0; i < d.length; i++) {
+        for (let i = 0; i < d.read.length; i++) {
             d3.select(this)
             .append('text')
-            .text(d[i])
+            .text(d.read[i])
             .attr('x', i * letterWidth)
             .attr('y', 20)
         }
     })
-
-    console.log('reads:', reads);
 
     alignReads(refSeq);
     return;
@@ -131,108 +201,14 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         }
     }
 
-    var brokenUp = false;
-
     function getRandomInt(min, max) {
       min = Math.ceil(min);
       max = Math.floor(max);
       return Math.floor(Math.random() * (max - min)) + min;
     }
 
-    function breakUpSequences() {
-        if (brokenUp)
-            return;
-
-        svg.selectAll('g')
-            .transition()
-            .duration(duration)
-            .each(function(d,j) {
-                let gNode = d3.select(this);
-                let letterNodes = gNode.selectAll('text').nodes()
-
-                if (j == 0)
-                    return;
-
-                var i = 0;
-                // partition the sequences into reads
-                while (i < text.length) {
-                    let nextI = Math.min(text.length, i + getRandomInt(minReadLength,maxReadLength));
-                    let currentTexts = letterNodes.slice(i, nextI);
-
-                    let read = currentTexts.map((x) => x.innerHTML).join("");
-
-                    var gChunk = svg.append('g')
-                        .attr('class', 'read')
-                        .attr('transform', `translate(${d3.select(currentTexts[0]).attr('x')},${j*30})`);
-
-                    let initialX = d3.select(currentTexts[0]).attr('x');
-
-                    for (let k = 0; k < currentTexts.length; k++) {
-                        currentTexts[k].parentNode.removeChild(currentTexts[k]); 
-                        gChunk.node().appendChild(currentTexts[k]);
-
-                        // add a rectangle to show where the text is located
-                        gChunk.append('rect')
-                            .attr('width', currentTexts.length * letterWidth)
-                            .attr('height', 18)
-                            .attr('y', 6)
-                            .attr('x', -2)
-                            .style('stroke', 'grey')
-                            .style('stroke-width', '1px')
-                            .style('fill', 'transparent')
-
-                        d3.select(currentTexts[k]).attr('x', d3.select(currentTexts[k]).attr('x') 
-                                - initialX);
-                    }
-
-                    i = nextI;
-                }
-            })
-            .style('opacity', 0.8)
-            //.remove();
-
-        /*
-        d3.selectAll('.read')
-        .transition()
-        .each(function(d) {
-            d3.select(this).attr('transform', `translate(${Math.random() * width}, ${Math.random() * height})`)
-        })
-        */
-
-        brokenUp = true;
-
-        shuffleReads();
-    }
-
     let marginLeft = 10;
     let interColSpace = 10;
-
-    function shuffleReads() {
-        var N = d3.selectAll('.read').size();
-        let positions = Array.apply(null, {length: N}).map(Number.call, Number);
-        shuffle(positions);
-
-        let numCols = Math.floor(width / (interColSpace + letterWidth * maxReadLength));
-        let numRows = Math.ceil(N / numCols);
-
-        let marginTop = 30;
-
-        d3.selectAll('.read')
-          .each(function(d,i) {
-              let rowPos = Math.floor(positions[i] / numCols);
-              let colPos = positions[i] - (rowPos * numCols);
-
-              d3.select(this)
-                  .transition()
-                  .duration(duration)
-                  .attr('transform',
-                          `translate(${marginLeft + colPos * maxReadLength * letterWidth + (colPos - 1) * interColSpace},
-                                     ${rowPos * letterHeight + marginTop})`)
-                  .on('end', alignReads);
-          });
-
-    }
-
     var aligned = false;
 
     function alignReads(text) {
@@ -245,46 +221,22 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         let occupied = [new Array(text.length).fill(0)];
 
         d3.selectAll('.read')
+            .sort(function(a,b) {
+                if (a.mapPos == b.mapPos)
+                    return +b.read.length - +a.read.length;
+                else
+                    return +a.mapPos - +b.mapPos;
+            })
             .each(function(d,_) {
                 let readNodes = d3.select(this).selectAll('text').nodes()
                 let readText = readNodes.map(x => x.innerHTML).join('');
-
-                let positionMismatches = [];
-
-                for (let i = 0; i < text.length - readText.length + 1; i++) {
-                    let positionMismatch = [i,0];
-
-                    for (let j = 0; j < readText.length; j++) {
-                        if ( text[i + j] != readText[j]) {
-                            // add a mismatch to this position
-                            positionMismatch[1] += 1;
-                        }
-                    }
-
-                    positionMismatches.push(positionMismatch);
-                }
-
-                positionMismatches.sort((a,b) => {
-                    if (b[1] == a[1]) {
-                        // equal number of mismatches, sort randomly
-                        /*
-                        if (a[1] < 2)
-                            console.log('equal', a[0], b[0], "mismatches:", a[1], b[1]);
-                        */
-                        return -.5 + Math.random()
-                    } else {
-                        return a[1] - b[1];
-                    }
-                });
-
-
-                let startPos = positionMismatches[0][0];
+                //console.log('d:', d);
 
                 // what is the uppermost free position for this read?
                 let rowToPlaceReadIn = null;
 
                 for (let i = 0; i < occupied.length; i++) {
-                    let slicedPoss = occupied[i].slice(startPos, startPos + readText.length);
+                    let slicedPoss = occupied[i].slice(d.mapPos, d.mapPos + readText.length);
                     let s = slicedPoss.reduce((a,b) => a + b, 0);
 
                     if (s == 0) {
@@ -301,14 +253,14 @@ function zoomFiltering(divId, refSeq, seqSeq) {
                     occupied.push(rowToPlaceReadIn);
                 }
 
-                for (let j = startPos; j < startPos + readText.length; j++) {
+                for (let j = d.mapPos; j < d.mapPos + readText.length; j++) {
                     rowToPlaceReadIn[j] = 1;
                 }
 
                 d3.select(this)
                 .selectAll('text')
                 .each(function(t, ti) {
-                    if (readText[ti] != text[startPos + ti]) {
+                    if (readText[ti] != text[d.mapPos + ti]) {
                         d3.select(this)
                         .attr('fill', 'red');
                     }
@@ -318,7 +270,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
                     .transition()
                     .duration(duration)
                     .attr('transform',
-                          `translate(${startPos * letterWidth},
+                          `translate(${d.mapPos * letterWidth},
                                      ${yPos * letterHeight + marginTop})`)
 
             });
