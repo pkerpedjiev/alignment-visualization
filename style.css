@@ -11,3 +11,12 @@ text {
 .coverage-rect {
     fill: blue;
 }
+
+.underlay {
+    fill: transparent;
+    stroke-width: 0px;
+}
+
+svg {
+    border: 1px solid gray;
+}

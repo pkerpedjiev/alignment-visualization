@@ -98,7 +98,7 @@ function mapRead(read, refSeq, maxMismatches) {
         return { read: read, mapPos: -1, mismatches: [] };
 }
 
-function drawCoverageProfile(gProfile, height, letterWidth, coverageProfile) {
+function drawCoverageProfile(gProfile, height, coverageProfile, letterScale) {
     /*
      * Draw a coverage profile within the given element
      *
@@ -111,12 +111,12 @@ function drawCoverageProfile(gProfile, height, letterWidth, coverageProfile) {
      *  height: int
      *      The height of the coverage profile
      *
-     *  letterWidth: int
-     *      The width of each letter in the reference sequence.
-     *      This will be the width of each rectangle.
-     *
      *  coverageProfile : [int, ...]
      *      An array of coverage values
+     *
+     *  letterScale : d3.scale
+     *      A scale that will position the coverage rectangle for each 
+     *      letter
      *
      * Return
      * ------
@@ -127,20 +127,23 @@ function drawCoverageProfile(gProfile, height, letterWidth, coverageProfile) {
     .domain([0, d3.max(coverageProfile)])
     .range([height, 0]);
 
-    gProfile.selectAll('.coverage-rect')
+    let coverageRects = gProfile.selectAll('.coverage-rect')
     .data(coverageProfile)
-    .enter()
+
+    coverageRects.enter()
     .append('rect')
     .classed('coverage-rect', true)
-    .attr('x', (d,i) => i * letterWidth)
+    .merge(coverageRects)
+    
+    .attr('x', (d,i) => letterScale(i))
     .attr('y', valueScale)
-    .attr('width', () => letterWidth)
+    .attr('width', () => letterScale(1) - letterScale(0))
     .attr('height', (d) => height - valueScale(d))
 
 }
 
 function zoomFiltering(divId, refSeq, seqSeq) {
-    var width = 800, height=800, maxR=20;
+    var width = 600, height=600;
 
     d3.select(divId)
     .selectAll('svg')
@@ -151,14 +154,21 @@ function zoomFiltering(divId, refSeq, seqSeq) {
                 .attr('width', width)
                 .attr('height', height)
 
-    svg = svg.append('g')
+    svg.append('rect')
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('width', width)
+    .attr('height', height)
+    .classed('underlay', true)
+
+    gMain = svg.append('g')
     .attr('transform',
             'translate(20,20)');
 
     //console.log("seqSeq", seqSeq);
     var reads = [];
 
-    let coverage = 10;
+    let coverage = 50;
     var minReadLength = 3;
     var maxReadLength = 6;
     console.log('seqSeq.length:', seqSeq.length);
@@ -184,10 +194,16 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     let coverageProfileHeight = 20;
     let interMargin = 5;
 
-    var gCoverageProfile = svg.append('g')
-    drawCoverageProfile(gCoverageProfile, coverageProfileHeight, letterWidth, coverageArray);
+    var gCoverageProfile = gMain.append('g')
+    var letterScale = d3.scaleLinear().domain([0, refSeq.length-1])
+                      .range([0, (refSeq.length-1) * letterWidth]);
 
-    var gRef = svg.append('g')
+    drawCoverageProfile(gCoverageProfile, coverageProfileHeight, 
+                        coverageArray, letterScale);
+
+    var gAlignment = gMain.append('g');
+
+    var gRef = gAlignment.append('g')
     .classed('ref', true)
     .attr('transform', `translate(0,${coverageProfileHeight + interMargin + letterHeight / 2})`);
 
@@ -200,8 +216,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     .classed('reference-seq', true)
     .text((d) => d);
 
-
-    var gAllReads = svg.append('g')
+    var gAllReads = gAlignment.append('g')
     .attr('transform', `translate(0,${coverageProfileHeight + interMargin + letterHeight / 2})`);
 
     var gReads = gAllReads.selectAll('.read')
@@ -233,24 +248,25 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         }
     })
 
+    let zoom = d3.zoom()
+    .on('zoom', zoomed);
+
     alignReads(refSeq);
+    svg.call(zoom);
+
     return;
-
     
+    function zoomed() {
+        console.log('zoomed');
+        gAlignment
+        .attr('transform', d3.event.transform);
 
-    var text = refSeq;
-    //var text = "This is a longer sentence that we can sequence how we like";
+        let newXScale = d3.event.transform.rescaleX(letterScale);
+        drawCoverageProfile(gCoverageProfile, coverageProfileHeight, coverageArray,
+                            newXScale);
+    }
 
-    var gOrigSentence = svg.append('g');
 
-    gOrigSentence.selectAll('.text')
-        .data(text)
-        .enter()
-        .append('text')
-        .attr('x', function(d,i) { return i * letterWidth })
-        .attr('y', 20)
-        .text(function(d) { return d; });
-    
     var duration = 400;
 
     function getRandomInt(min, max) {
@@ -259,16 +275,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
       return Math.floor(Math.random() * (max - min)) + min;
     }
 
-    let marginLeft = 10;
-    let interColSpace = 10;
-    var aligned = false;
-
     function alignReads(text) {
-        if (aligned)
-            return;
-
-        aligned = true;
-
         let marginTop = 0;
         let occupied = [new Array(text.length).fill(0)];
 
