@@ -262,32 +262,38 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     .on('zoom', zoomed);
 
     alignReads(refSeq);
-    svg.call(zoom);
 
     let minX = 0, minY = 0, 
         maxX = refSeq.length * letterWidth, 
-        maxY = d3.max(coverageArray) * letterHeight + 20 + gRefTranslate;
+        maxY = d3.max(coverageArray) * letterHeight + 20;
 
-    let x = (minX + maxX) / 2, y = (minX + maxX) / 2,
+    let availableHeight = height - gRefTranslate;
+
+    let x = (minX + maxX) / 2, y = (minY + maxY) / 2,
         dx = maxX - minX, dy = maxY - minX;
-    let scale = .9 / Math.max(dx / width, dy / height),
-          translate = [width / 2 - scale * x, height / 2 - scale * y];
+    let scale = 1.0 / Math.max(dx / width, dy / availableHeight),
+          translate = [width / 2 - scale * x, 
+              (1 - scale) * gRefTranslate];
 
 
+    /*
       gAlignment.transition()
-        .duration(750)
+        .duration(2000)
         .style("stroke-width", 1.5 / scale + "px")
         .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
+    */
+
+    svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity
+                     .translate(translate[0], translate[1])
+                     .scale(scale));
+    svg.call(zoom);
 
     return;
     
     function zoomed() {
-        console.log('transform:', d3.event.transform);
-        console.log('gRefTranslate:', gRefTranslate);
         let referenceOffset = gRefTranslate;
         let t = d3.event.transform;
 
-        console.log('zoomed');
         gAlignment
         //.attr('transform', `translate(${t.x},${(1 - t.k)*referenceOffset})scale(${t.k})`);
         .attr('transform', d3.event.transform);
