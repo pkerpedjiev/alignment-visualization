@@ -143,7 +143,7 @@ function drawCoverageProfile(gProfile, height, coverageProfile, letterScale) {
 }
 
 function zoomFiltering(divId, refSeq, seqSeq) {
-    var width = 600, height=600;
+    var width = 550, height=550;
 
     d3.select(divId)
     .selectAll('svg')
@@ -163,14 +163,14 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     gMain = svg.append('g')
     .attr('transform',
-            'translate(20,20)');
+            'translate(0,0)');
 
     //console.log("seqSeq", seqSeq);
     var reads = [];
 
     let coverage = 50;
     var minReadLength = 3;
-    var maxReadLength = 6;
+    var maxReadLength = 7;
     console.log('seqSeq.length:', seqSeq.length);
     let numReads = Math.ceil(seqSeq.length * coverage / ((minReadLength + maxReadLength) / 2));
     var letterWidth = 12;
@@ -203,27 +203,29 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     var gAlignment = gMain.append('g');
 
+    let gRefTranslate = coverageProfileHeight;
     var gRef = gAlignment.append('g')
     .classed('ref', true)
-    .attr('transform', `translate(0,${coverageProfileHeight + interMargin + letterHeight / 2})`);
+    .attr('transform', `translate(0,${gRefTranslate})`);
 
     gRef.selectAll('text')
     .data(refSeq)
     .enter()
     .append('text')
     .attr('x', (d,i) => i * letterWidth)
-    .attr('y', 0)
+    .attr('y', letterHeight / 2)
     .classed('reference-seq', true)
     .text((d) => d);
 
     var gAllReads = gAlignment.append('g')
-    .attr('transform', `translate(0,${coverageProfileHeight + interMargin + letterHeight / 2})`);
+    .attr('transform', `translate(0,${gRefTranslate + 10})`);
 
     var gReads = gAllReads.selectAll('.read')
     .data(reads)
     .enter()
     .append('g')
     .classed('read', true)
+    .attr('transform', 'translate(0,4)');
 
     var rectReads = gReads
     .append('rect')
@@ -257,9 +259,15 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     return;
     
     function zoomed() {
+        console.log('transform:', d3.event.transform);
+        console.log('gRefTranslate:', gRefTranslate);
+        let referenceOffset = gRefTranslate;
+        let t = d3.event.transform;
+
         console.log('zoomed');
         gAlignment
-        .attr('transform', d3.event.transform);
+        .attr('transform', `translate(${t.x},${(1 - t.k)*referenceOffset})scale(${t.k})`);
+        //.attr('transform', d3.event.transform);
 
         let newXScale = d3.event.transform.rescaleX(letterScale);
         drawCoverageProfile(gCoverageProfile, coverageProfileHeight, coverageArray,
