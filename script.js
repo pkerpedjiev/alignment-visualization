@@ -208,6 +208,14 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     .classed('ref', true)
     .attr('transform', `translate(0,${gRefTranslate})`);
 
+
+
+    gRef.append('rect')
+                .attr('width', refSeq.length * letterWidth)
+                .attr('height', d3.max(coverageArray) * letterHeight + 20)
+                .style('fill', 'grey')
+                .style('opacity', 0.5)
+
     gRef.selectAll('text')
     .data(refSeq)
     .enter()
@@ -256,6 +264,21 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     alignReads(refSeq);
     svg.call(zoom);
 
+    let minX = 0, minY = 0, 
+        maxX = refSeq.length * letterWidth, 
+        maxY = d3.max(coverageArray) * letterHeight + 20 + gRefTranslate;
+
+    let x = (minX + maxX) / 2, y = (minX + maxX) / 2,
+        dx = maxX - minX, dy = maxY - minX;
+    let scale = .9 / Math.max(dx / width, dy / height),
+          translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+
+      gAlignment.transition()
+        .duration(750)
+        .style("stroke-width", 1.5 / scale + "px")
+        .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
+
     return;
     
     function zoomed() {
@@ -266,8 +289,8 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
         console.log('zoomed');
         gAlignment
-        .attr('transform', `translate(${t.x},${(1 - t.k)*referenceOffset})scale(${t.k})`);
-        //.attr('transform', d3.event.transform);
+        //.attr('transform', `translate(${t.x},${(1 - t.k)*referenceOffset})scale(${t.k})`);
+        .attr('transform', d3.event.transform);
 
         let newXScale = d3.event.transform.rescaleX(letterScale);
         drawCoverageProfile(gCoverageProfile, coverageProfileHeight, coverageArray,
