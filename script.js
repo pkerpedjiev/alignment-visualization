@@ -285,7 +285,25 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity
                      .translate(translate[0], translate[1])
-                     .scale(scale));
+                     .scale(scale))
+                     .on('end', () => {
+                         console.log('minX:', minX, 'maxX:', maxX, 'minY', minY, 'maxY', maxY);
+                        let newXScale = d3.zoomIdentity
+                        .translate(translate[0], translate[1])
+                        .scale(scale).rescaleX(letterScale);
+
+                        let minWorldY = translate[1];
+                        let maxWorldY = d3.max(coverageArray) * scale + translate[1];
+
+                        let minWorldX = translate[0];
+                        let maxWorldX = (refSeq.length * letterWidth) * scale + translate[0];
+
+                        console.log([[minWorldX, minWorldY], 
+                                             [maxWorldX, maxWorldY]]);
+
+                        zoom.translateExtent([[minWorldX, minWorldY], 
+                                             [maxWorldX, maxWorldY]]);   
+                     });
     svg.call(zoom);
 
     return;
