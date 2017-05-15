@@ -283,44 +283,73 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
     */
 
+    let boundsTranslate = [0,0];
+    let boundsScale = 1;
+
+    let minWorldX, maxWorldX, minWorldY, maxWorldY;
+
     svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity
                      .translate(translate[0], translate[1])
                      .scale(scale))
                      .on('end', () => {
                          console.log('minX:', minX, 'maxX:', maxX, 'minY', minY, 'maxY', maxY);
+
                         let newXScale = d3.zoomIdentity
                         .translate(translate[0], translate[1])
                         .scale(scale).rescaleX(letterScale);
 
-                        let minWorldY = translate[1];
-                        let maxWorldY = d3.max(coverageArray) * scale + translate[1];
+                        boundsTranslate = [translate[0], translate[1]];
+                        boundsScale = scale;
 
+                        minWorldY = translate[1];
+                        maxWorldY = d3.max(coverageArray) * scale + translate[1];
+
+                        /*
                         let minWorldX = translate[0];
                         let maxWorldX = (refSeq.length * letterWidth) * scale + translate[0];
+                        */
+                        minWorldX = newXScale.invert(0);
+                        maxWorldX = newXScale.invert(width);
 
-                        console.log([[minWorldX, minWorldY], 
-                                             [maxWorldX, maxWorldY]]);
+                        console.log([minWorldX, minWorldY], 
+                                             [maxWorldX, maxWorldY]);
 
+                        /*
                         zoom.translateExtent([[minWorldX, minWorldY], 
                                              [maxWorldX, maxWorldY]]);   
+                        */
                      });
     svg.call(zoom);
 
-    return;
-    
+    let prevTransform = d3.zoomIdentity;
+
     function zoomed() {
         let referenceOffset = gRefTranslate;
         let t = d3.event.transform;
 
+        newXScale = t.rescaleX(letterScale);
+
+        console.log('newXScale(0):', newXScale(0));
+
+        if (newXScale(0) < 0  || newXScale(refSeq.length) > width) {
+            // gone beyond the zoom bounds, revert
+            console.log('t:', t);
+            t = prevTransform;
+        }
+
+        prevTransform.x = t.x;
+        prevTransform.y = t.y;
+        prevTransform.k = t.k;
+
         gAlignment
         //.attr('transform', `translate(${t.x},${(1 - t.k)*referenceOffset})scale(${t.k})`);
-        .attr('transform', d3.event.transform);
+        .attr('transform', t);
 
-        let newXScale = d3.event.transform.rescaleX(letterScale);
         drawCoverageProfile(gCoverageProfile, coverageProfileHeight, coverageArray,
                             newXScale);
     }
 
+    return;
 
     var duration = 400;
 
