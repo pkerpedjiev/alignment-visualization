@@ -288,6 +288,10 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     let minWorldX, maxWorldX, minWorldY, maxWorldY;
 
+    zoom.translateExtent([[-10, -10], 
+                         [width+10, height+10]]);   
+
+                         /*
     svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity
                      .translate(translate[0], translate[1])
                      .scale(scale))
@@ -304,21 +308,16 @@ function zoomFiltering(divId, refSeq, seqSeq) {
                         minWorldY = translate[1];
                         maxWorldY = d3.max(coverageArray) * scale + translate[1];
 
-                        /*
-                        let minWorldX = translate[0];
-                        let maxWorldX = (refSeq.length * letterWidth) * scale + translate[0];
-                        */
                         minWorldX = newXScale.invert(0);
                         maxWorldX = newXScale.invert(width);
 
                         console.log([minWorldX, minWorldY], 
                                              [maxWorldX, maxWorldY]);
 
-                        /*
                         zoom.translateExtent([[minWorldX, minWorldY], 
                                              [maxWorldX, maxWorldY]]);   
-                        */
                      });
+                     */
     svg.call(zoom);
 
     let prevTransform = d3.zoomIdentity;
@@ -328,18 +327,7 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         let t = d3.event.transform;
 
         newXScale = t.rescaleX(letterScale);
-
-        console.log('newXScale(0):', newXScale(0));
-
-        if (newXScale(0) < 0  || newXScale(refSeq.length) > width) {
-            // gone beyond the zoom bounds, revert
-            console.log('t:', t);
-            t = prevTransform;
-        }
-
-        prevTransform.x = t.x;
-        prevTransform.y = t.y;
-        prevTransform.k = t.k;
+        console.log('t:', t);
 
         gAlignment
         //.attr('transform', `translate(${t.x},${(1 - t.k)*referenceOffset})scale(${t.k})`);
