@@ -201,8 +201,10 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     drawCoverageProfile(gCoverageProfile, coverageProfileHeight, 
                         coverageArray, letterScale);
 
-    var gAlignment = gMain.append('g');
+    var gAlignment = gMain.append('g')
+    .classed('g-alignment', true);
 
+    // the location where the reference sequence will be drawn
     let gRefTranslate = coverageProfileHeight;
     var gRef = gAlignment.append('g')
     .classed('ref', true)
@@ -265,27 +267,29 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     let minX = 0, minY = 0, 
         maxX = refSeq.length * letterWidth, 
-        maxY = d3.max(coverageArray) * letterHeight + 20;
+        maxY = d3.max(coverageArray) * letterHeight + gRefTranslate;
 
     let availableHeight = height - gRefTranslate;
 
-    let x = (minX + maxX) / 2, y = (minY + maxY) / 2,
-        dx = maxX - minX, dy = maxY - minX;
-    let scale = 1.0 / Math.max(dx / width, dy / availableHeight),
-          translate = [width / 2 - scale * x, 
+    let x = (minX + maxX) / 2, 
+        y = (minY + maxY) / 2;
+    let dx = maxX - minX, 
+        dy = maxY - minX;
+
+    // the available height does not include the coverage profile
+    // at the top
+    let scale = 1.0 / Math.max(dx / width, dy / availableHeight);
+    let translate = [width / 2 - scale * x, 
               (1 - scale) * gRefTranslate];
 
+    let zoomToExtentTransform = d3.zoomIdentity
+            .translate(translate[0], translate[1])
+            .scale(scale);
 
-    /*
-      gAlignment.transition()
-        .duration(2000)
-        .style("stroke-width", 1.5 / scale + "px")
-        .attr("transform", "translate(" + translate + ")scale(" + scale + ")");
-    */
+    console.log('zoomToExtentTransform:', zoomToExtentTransform);
 
-    svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity
-                     .translate(translate[0], translate[1])
-                     .scale(scale));
+    svg.transition().duration(750)
+    .call(zoom.transform, zoomToExtentTransform);
     svg.call(zoom);
 
     return;
@@ -294,15 +298,28 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         let referenceOffset = gRefTranslate;
         let t = d3.event.transform;
 
+        // we're going to create a new bounded transform to prevent
+        // the view from zooming out of bounds or too far
+        console.log('d3.event.transform.x', d3.event.transform);
+        let limitedTransform = 
+            d3.zoomIdentity
+                       // prevent scrolling the reads down below
+                       // the bottom of the coverage profile
+            .translate(t.x,
+                       Math.min((1 - t.k) * gRefTranslate, t.y))
+                       // prevent zooming out too far
+            .scale(Math.max(zoomToExtentTransform.k, t.k))
+
+        console.log('limitedTransform:', limitedTransform);
+        
         gAlignment
-        //.attr('transform', `translate(${t.x},${(1 - t.k)*referenceOffset})scale(${t.k})`);
-        .attr('transform', d3.event.transform);
+        .attr('transform', limitedTransform);
+
 
         let newXScale = d3.event.transform.rescaleX(letterScale);
         drawCoverageProfile(gCoverageProfile, coverageProfileHeight, coverageArray,
                             newXScale);
     }
-
 
     var duration = 400;
 
