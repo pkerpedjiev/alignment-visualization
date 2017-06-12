@@ -288,7 +288,9 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     console.log('zoomToExtentTransform:', zoomToExtentTransform);
 
-    svg.transition().duration(750)
+    zoom.scaleExtent([zoomToExtentTransform.k + 0.001, 500]);
+
+    svg     //.transition().duration(750)
     .call(zoom.transform, zoomToExtentTransform);
     svg.call(zoom);
 
@@ -297,6 +299,8 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     function zoomed() {
         let referenceOffset = gRefTranslate;
         let t = d3.event.transform;
+
+        console.log('d3.event', d3.event);
 
         // we're going to create a new bounded transform to prevent
         // the view from zooming out of bounds or too far
@@ -316,9 +320,18 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         .attr('transform', limitedTransform);
 
 
+
         let newXScale = d3.event.transform.rescaleX(letterScale);
         drawCoverageProfile(gCoverageProfile, coverageProfileHeight, coverageArray,
                             newXScale);
+
+
+        if (d3.event.sourceEvent && d3.event.sourceEvent.type == 'zoom') {
+            // if this zoom event was programmatic, it's probably the result
+            // of the 'call' below
+        } else {
+            svg.call(zoom.transform, limitedTransform);
+        }
     }
 
     var duration = 400;
