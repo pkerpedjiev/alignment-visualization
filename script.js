@@ -143,7 +143,7 @@ function drawCoverageProfile(gProfile, height, coverageProfile, letterScale) {
 }
 
 function zoomFiltering(divId, refSeq, seqSeq) {
-    var width = 550, height=550;
+    var width = 800, height=550;
 
     d3.select(divId)
     .selectAll('svg')
@@ -168,9 +168,9 @@ function zoomFiltering(divId, refSeq, seqSeq) {
     //console.log("seqSeq", seqSeq);
     var reads = [];
 
-    let coverage = 50;
-    var minReadLength = 3;
-    var maxReadLength = 7;
+    let coverage = 30;
+    var minReadLength = 10;
+    var maxReadLength = 10;
     console.log('seqSeq.length:', seqSeq.length);
     let numReads = Math.ceil(seqSeq.length * coverage / ((minReadLength + maxReadLength) / 2));
     var letterWidth = 12;
@@ -214,8 +214,8 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     gRef.append('rect')
                 .attr('width', refSeq.length * letterWidth)
-                .attr('height', d3.max(coverageArray) * letterHeight + 20)
-                .style('fill', 'grey')
+                .attr('height', d3.max(coverageArray) * letterHeight + coverageProfileHeight)
+                .style('fill', 'white')
                 .style('opacity', 0.5)
 
     gRef.selectAll('text')
@@ -265,9 +265,10 @@ function zoomFiltering(divId, refSeq, seqSeq) {
 
     alignReads(refSeq);
 
+    let maxCoverage = d3.max(coverageArray);
     let minX = 0, minY = 0, 
         maxX = refSeq.length * letterWidth, 
-        maxY = d3.max(coverageArray) * letterHeight + gRefTranslate;
+        maxY = maxCoverage * letterHeight + gRefTranslate;
 
     let availableHeight = height - gRefTranslate;
 
@@ -300,6 +301,22 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         let referenceOffset = gRefTranslate;
         let t = d3.event.transform;
 
+      let newHeight = maxCoverage * letterHeight * t.k + gRefTranslate;
+
+
+      let limitY = Math.min((1 - t.k) * gRefTranslate, t.y);
+
+      console.log('newHeight:', newHeight, newHeight - height + t.k * gRefTranslate);
+
+      //  don't allow scrolling up past the profile if we haven't overflown
+      //  the available drawing area
+      if (newHeight < height)
+        limitY = Math.max(limitY, (1 - t.k) * gRefTranslate);
+      else
+        limitY = Math.max(limitY, -(newHeight - height + t.k * gRefTranslate));
+
+
+
         console.log('d3.event', d3.event);
 
         // we're going to create a new bounded transform to prevent
@@ -309,8 +326,8 @@ function zoomFiltering(divId, refSeq, seqSeq) {
             d3.zoomIdentity
                        // prevent scrolling the reads down below
                        // the bottom of the coverage profile
-            .translate(t.x,
-                       Math.min((1 - t.k) * gRefTranslate, t.y))
+            .translate(t.x, limitY )
+
                        // prevent zooming out too far
             .scale(Math.max(zoomToExtentTransform.k, t.k))
 
@@ -318,8 +335,6 @@ function zoomFiltering(divId, refSeq, seqSeq) {
         
         gAlignment
         .attr('transform', limitedTransform);
-
-
 
         let newXScale = d3.event.transform.rescaleX(letterScale);
         drawCoverageProfile(gCoverageProfile, coverageProfileHeight, coverageArray,
